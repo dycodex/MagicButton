@@ -7,3 +7,4 @@ _backup/
 .cproject
 .settings
 spiffs_files/
+.vscode/
