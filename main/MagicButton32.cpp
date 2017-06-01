@@ -39,19 +39,19 @@ void app_main(void);
 // #include "I2SPlayer.h"
 // I2SPlayer wavPlayer;
 
-// #include "GestureManager.h"
+#include "GestureManager.h"
 
 #include "MagicButtonAnimation.h"
 
 RgbLedColor_t fadeColor(200, 20, 80);
 //MagicButtonFadeInOutAnimation fadeInOutAnim(MagicButtonBoard.getRgbLed(), fadeColor);
-//MagicButtonGlowAnimation glowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
+MagicButtonGlowAnimation glowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 
 RgbLedColor_t myColors[] = { 0xFF0000, 0x00FF00, 0x0000FF };
 RgbLedPalette_t paletteRgb = { 3, myColors };
 MagicButtonCometAnimation cometAnim(MagicButtonBoard.getRgbLed(), paletteRgb);
 
-// MagicButtonArrowAnimation arrowAnim(ws2812, fadeColor);
+MagicButtonArrowAnimation arrowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 
 // WS2812Color_t fadeColor2(100, 200, 70);
 // MagicButtonFadingAnimation  fadingAnim(ws2812, fadeColor2);
@@ -139,7 +139,7 @@ void app_main(void)
 //	fadeInOutAnim.start(2000, 10);
 //	glowAnim.start(3000);
 
-	cometAnim.start(2000, ANIM_DIR_RIGHT, 3);
+	cometAnim.start(2000, ANIM_DIR_RIGHT, 1);
 
 	// Initialize touch pad peripheral
 //	touch_pad_init();
@@ -262,22 +262,32 @@ void app_main(void)
 
 		lastProxLevel = scaled;
 	});
-
 	*/
 
-	// 	GestureManager.onGestureDetected([](int gestDir) {
-	// 		ESP_LOGI(TAG, "Yuhuuu... gesture detected %d", gestDir);
-	// //		xTaskCreate(&ws2812ArrowAnimTask, "ws2812ArrowAnimTask", 2048, (void*)gestDir, 2, NULL);
+	GestureManager.onGestureDetected([](int gestDir) {
+		ESP_LOGI(TAG, "Yuhuuu... gesture detected %d", gestDir);
+ //		xTaskCreate(&ws2812ArrowAnimTask, "ws2812ArrowAnimTask", 2048, (void*)gestDir, 2, NULL);
 
-	// 		arrowAnim.animateArrow((MagicButtonArrow_t)gestDir);
+		if (gestDir == DIR_FAR) {
+			glowAnim.start(1000);
+		}
+		else if (gestDir == DIR_NEAR) {
+			glowAnim.start(500);
+		}
+		else if (gestDir == DIR_NONE) {
 
-	// //		if (gestDir == DIR_NEAR) {
-	// //			GestureManager.setGestureRecognitionEnabled(false);
-	// //		}
+		}
+		else {
+			arrowAnim.animateArrow((MagicButtonAnimationArrow_t)gestDir);
+		}
 
-	// 	});
+ //		if (gestDir == DIR_NEAR) {
+ //			GestureManager.setGestureRecognitionEnabled(false);
+ //		}
 
-	// 	if (GestureManager.begin()) {
-	// 		GestureManager.runAsync();
-	// 	}
+	});
+
+	if (GestureManager.begin()) {
+		GestureManager.runAsync();
+	}
 }

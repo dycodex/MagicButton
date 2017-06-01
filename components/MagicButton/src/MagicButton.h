@@ -19,12 +19,11 @@
 #define MAGICBUTTON_DEBUG_PRINT(...)   	ESP_LOGD("MAGICBUTTON", __VA_ARGS__);
 #define MAGICBUTTON_INFO_PRINT(...)   	ESP_LOGI("MAGICBUTTON", __VA_ARGS__);
 
-//#define MAGICBUTTON_TOUCH_COUNT 			8
 #define SDAPIN (GPIO_NUM_21)
 #define SCLPIN (GPIO_NUM_22)
 
 #define MAGICBUTTON_RGBLED_GPIO		GPIO_NUM_27
-#define MAGICBUTTON_RGBLED_COUNT	15
+#define MAGICBUTTON_RGBLED_COUNT	15   //Change this for another board type, which has 8 neopixels
 
 class MagicButtonBoardClass {
 public:

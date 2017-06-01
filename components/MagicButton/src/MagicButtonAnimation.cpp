@@ -8,7 +8,7 @@
 #include "MagicButtonAnimation.h"
 
 MagicButtonAnimation::MagicButtonAnimation(WS2812& ws8212):
-ws2812_(ws8212){
+ws2812_(ws8212) {
 
 }
 
@@ -29,6 +29,8 @@ void MagicButtonAnimation::start() {
 	}
 
 	animationPrevStarted_ = true;
+
+	this->ws2812_.clear();
 }
 
 void MagicButtonAnimation::stop() {
@@ -45,6 +47,8 @@ void MagicButtonAnimation::run() {
 	}
 }
 
+
+// MagicButtonFadeInOutAnimation
 MagicButtonFadeInOutAnimation::MagicButtonFadeInOutAnimation(WS2812& ws2812, RgbLedColor_t &color):
 		MagicButtonAnimation(ws2812), fadingColor_(color)
 {
@@ -89,15 +93,17 @@ void MagicButtonFadeInOutAnimation::stop() {
 	MagicButtonAnimation::stop();
 }
 
+
+// MagicButtonArrowAnimation
 MagicButtonArrowAnimation::MagicButtonArrowAnimation(WS2812& ws2812, RgbLedColor_t& color):
-		MagicButtonAnimation(ws2812), fadingColor_(color)
-{
+		MagicButtonAnimation(ws2812), fadingColor_(color) {
 }
 
 void MagicButtonArrowAnimation::animateArrow(MagicButtonAnimationArrow_t arrow) {
 
 	arrow = (MagicButtonAnimationArrow_t)((int)arrow - 1);
-	uint8_t ledIndiceses[4][2] = {{4, 5}, {0, 1}, {6, 7}, {2, 3}};
+	//uint8_t ledIndiceses[4][2] = {{4, 5}, {0, 1}, {6, 7}, {2, 3}};
+	uint8_t ledIndiceses[4][4] = {{0, 1, 14, 13}, {5, 6, 7, 8}, {1, 2, 3, 4}, {9, 10, 11, 12} };
 	uint8_t count = sizeof(ledIndiceses[(int)arrow])/sizeof(uint8_t);
 
 	MagicButtonAnimation::start();
@@ -140,10 +146,11 @@ void MagicButtonArrowAnimation::animateArrow(MagicButtonAnimationArrow_t arrow) 
 	}, 600, 2);
 }
 
+
+// MagicButtonFadingAnimation
 MagicButtonFadingAnimation::MagicButtonFadingAnimation(WS2812& ws2812,
 		RgbLedColor_t& color):
-		MagicButtonAnimation(ws2812), fadingColor_(color)
-{
+		MagicButtonAnimation(ws2812), fadingColor_(color) {
 }
 
 void MagicButtonFadingAnimation::start(uint8_t from, uint8_t to, uint16_t duration) {
@@ -169,7 +176,7 @@ void MagicButtonFadingAnimation::start(uint8_t from, uint8_t to, uint16_t durati
 
 	}, [this]() {
 
-		MBANIM_DEBUG_PRINT("Animation DONE");
+		MBANIM_DEBUG_PRINT("Fading Animation DONE");
 		if (this->animCompletedCb_ != NULL) {
 			this->animCompletedCb_();
 		}
@@ -177,10 +184,11 @@ void MagicButtonFadingAnimation::start(uint8_t from, uint8_t to, uint16_t durati
 	}, duration, 10);
 }
 
+
+// MagicButtonGlowAnimation
 MagicButtonGlowAnimation::MagicButtonGlowAnimation(WS2812& ws2812,
 		RgbLedColor_t& color):
-		MagicButtonAnimation(ws2812), glowColor_(color)
-{
+		MagicButtonAnimation(ws2812), glowColor_(color) {
 }
 
 void MagicButtonGlowAnimation::start(uint16_t duration) {
@@ -211,6 +219,8 @@ void MagicButtonGlowAnimation::start(uint16_t duration) {
 	}, duration, 10);
 }
 
+
+// MagicButtonCometAnimation
 MagicButtonCometAnimation::MagicButtonCometAnimation(WS2812& ws2812,
 		RgbLedPalette_t& cometColorPallete):
 		MagicButtonAnimation(ws2812), cometColorPallete_(cometColorPallete){

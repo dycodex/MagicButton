@@ -101,7 +101,7 @@ public:
 
 protected:
 	RgbLedPalette_t& cometColorPallete_;
-	MagicButtonAnimationDir_t animationDirection_;
+	MagicButtonAnimationDir_t animationDirection_ = ANIM_DIR_RIGHT;
 
 	uint16_t bouncingCount_ = 0, animCompleteCount_ = 0;
 };

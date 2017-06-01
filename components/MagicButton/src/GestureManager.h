@@ -26,7 +26,7 @@
 #define GESTMGR_INFO_PRINT(...)  	ESP_LOGI("GESTMGR", __VA_ARGS__);
 
 // Constants
-#define APDS9960_INT_GPIO 			5
+#define APDS9960_INT_GPIO 			34 //5
 #define APDS9960_PROX_INT_HIGH   	30 // Proximity level for interrupt
 #define APDS9960_PROX_INT_LOW    	0  // No far interrupt
 
