@@ -68,12 +68,12 @@ MagicButtonCometAnimation cometAnim(MagicButtonBoard.getRgbLed(), paletteRgb);
 // }
 
 extern "C" {
-#include <stdlib.h>
-#include <stdio.h>
-#include "esp_vfs.h"
-#include "esp_vfs_fat.h"
-#include "esp_system.h"
-#include "wear_levelling.h"
+	#include <stdlib.h>
+	#include <stdio.h>
+	#include "esp_vfs.h"
+	#include "esp_vfs_fat.h"
+	#include "esp_system.h"
+	#include "wear_levelling.h"
 }
 
 static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
@@ -139,7 +139,7 @@ void app_main(void)
 //	fadeInOutAnim.start(2000, 10);
 //	glowAnim.start(3000);
 
-	cometAnim.start(2000, ANIM_DIR_LEFT, 3);
+	cometAnim.start(2000, ANIM_DIR_RIGHT, 3);
 
 	// Initialize touch pad peripheral
 //	touch_pad_init();
@@ -164,6 +164,7 @@ void app_main(void)
 		MagicButtonBoard.getRgbLed().show();
 	});
 
+	// Should explicitly start the cap touch wheel.
 	MagicButtonBoard.startCapTouchWheel();
 
 	//	pinMode(39, ANALOG);

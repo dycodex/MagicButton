@@ -12,9 +12,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_err.h"
-#include "Coordinates.h"
-
-Coordinates position;
 
 static void calibrate_touch_pad(touch_pad_t pad)
 {
