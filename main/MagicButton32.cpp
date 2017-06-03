@@ -47,7 +47,8 @@ RgbLedColor_t fadeColor(200, 20, 80);
 //MagicButtonFadeInOutAnimation fadeInOutAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 MagicButtonGlowAnimation glowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 
-RgbLedColor_t myColors[] = { 0xFF0000, 0x00FF00, 0x0000FF };
+// RgbLedColor_t myColors[] = { 0xFF0000, 0x00FF00, 0x0000FF };
+RgbLedColor_t myColors[] = { 0x0000FF, 0x0000FF, 0x0000FF };
 RgbLedPalette_t paletteRgb = { 3, myColors };
 MagicButtonCometAnimation cometAnim(MagicButtonBoard.getRgbLed(), paletteRgb);
 
@@ -86,7 +87,7 @@ void app_main(void)
 	ESP_LOGI(TAG, "It begins!");
 
 	MagicButtonBoard.begin();
-	//MagicButton.scanI2C();
+	MagicButtonBoard.scanI2C();
 
 	// tryI2SInput(NULL);
 	// xTaskCreatePinnedToCore(tryI2SInput, "tryI2SInput", 2048*20, NULL, configMAX_PRIORITIES - 2, NULL, 1);
@@ -142,10 +143,9 @@ void app_main(void)
 	cometAnim.start(2000, ANIM_DIR_RIGHT, 1);
 
 	// Initialize touch pad peripheral
-//	touch_pad_init();
-	//xTaskCreate(&touchpad_read_task, "touch_pad_read_task", 2048, NULL, 5, NULL);
+	// touch_pad_init();
+	// xTaskCreate(&touchpad_read_task, "touch_pad_read_task", 2048, NULL, 5, NULL);
 //	xTaskCreate(&touchpad_circular_task, "touch_pad_read_task", 2048, NULL, 5, NULL);
-
 
 	MagicButtonBoard.getCapTouchWheel().setTouchActionCallback([](uint8_t tNo) {
 
@@ -153,14 +153,8 @@ void app_main(void)
 		uint8_t untilPixelNo = (uint8_t)map((uint8_t)tNo, 0, 7, 0, (pixelCount - 1));
 
 		printf("Touched %d, pixel no: %d\n", tNo, untilPixelNo);
-
 		MagicButtonBoard.getRgbLed().clear();
-		for(int i = 0; i < pixelCount; i++) {
-			if (i > untilPixelNo) {
-				break;
-			}
-			MagicButtonBoard.getRgbLed().setPixel(i, fadeColor);
-		}
+		MagicButtonBoard.getRgbLed().setPixel(tNo, fadeColor);
 		MagicButtonBoard.getRgbLed().show();
 	});
 
@@ -193,13 +187,13 @@ void app_main(void)
 //	// delay(50);
 //	tryI2SInput(NULL);
 //	// initRB();
-	
+
 	//xTaskCreate(&consumeI2SInput, "consumeI2SInput", 2048*10, NULL, configMAX_PRIORITIES - 3, NULL);
 //	xTaskCreate(&tryI2SInput, "tryI2SInput", 2048*10, NULL, configMAX_PRIORITIES - 2, NULL);
 
 	// xTaskCreatePinnedToCore(&consumeI2SInput , "consumeI2SInput" , 2048*10, NULL, configMAX_PRIORITIES - 3, NULL, 0);
 	// xTaskCreatePinnedToCore(&tryI2SInput , "tryI2SInput" , 2048*10, NULL, configMAX_PRIORITIES - 2, NULL, 0);
-	
+
 //	xTaskCreate(&tryI2SRecord, "tryI2SRecord", 2048*10, NULL, configMAX_PRIORITIES - 2, NULL);
 
 	//xTaskCreatePinnedToCore(&task_megaphone, "task_megaphone", 16384 * 2, NULL, 20, NULL, 0);

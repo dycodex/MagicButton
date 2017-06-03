@@ -19,7 +19,7 @@ extern "C" {
 #include "esp_err.h"
 }
 
-const size_t calibration_count = 16;
+const size_t calibration_count = 8;
 static int8_t lastIntrTouchPad = -1;
 volatile bool touchPadInterrupted = false;
 
@@ -74,7 +74,7 @@ void rtc_intr(void * arg)
 			}
 
 			if ((pad_intr >> i) & 0x01) {
-				//ets_printf("touch pad intr %u\n",i);
+				// ets_printf("touch pad intr %u\n",i);
 				lastIntrTouchPad = i;
 				touchPadInterrupted = true;
 			}
@@ -122,7 +122,7 @@ void CapTouchWheel::calibrate() {
 
 		baselineVals_[pad] = avgVal;
 
-		int threshold = baselineVals_[pad] - 100;
+		int threshold = baselineVals_[pad] - 30;
 		touch_pad_config((touch_pad_t)pad, threshold);
 //		touchAttachInterrupt(touchGpioNo, CapTouch_TouchInterruptHandler, threshold);
 //		i++;
@@ -226,7 +226,7 @@ void CapTouchWheel::runAsync(void* data) {
 
 				uint16_t tval;
 				touch_pad_read((touch_pad_t)lastIntrTouchPad, &tval);
-				int16_t threshold = (baselineVals_[lastIntrTouchPad] - 100);
+				int16_t threshold = (baselineVals_[lastIntrTouchPad] - 30);
 				//make sure it's the right pad
 				if (tval <= threshold) {
 

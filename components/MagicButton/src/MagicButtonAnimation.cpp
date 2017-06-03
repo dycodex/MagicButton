@@ -103,7 +103,7 @@ void MagicButtonArrowAnimation::animateArrow(MagicButtonAnimationArrow_t arrow) 
 
 	arrow = (MagicButtonAnimationArrow_t)((int)arrow - 1);
 	//uint8_t ledIndiceses[4][2] = {{4, 5}, {0, 1}, {6, 7}, {2, 3}};
-	uint8_t ledIndiceses[4][4] = {{0, 1, 14, 13}, {5, 6, 7, 8}, {1, 2, 3, 4}, {9, 10, 11, 12} };
+	uint8_t ledIndiceses[4][2] = {{0, 7}, {3, 4}, {1, 2}, {5, 6}};
 	uint8_t count = sizeof(ledIndiceses[(int)arrow])/sizeof(uint8_t);
 
 	MagicButtonAnimation::start();
