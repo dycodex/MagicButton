@@ -203,7 +203,7 @@ void WiFiManager::run() {
 
 	// Wait event bits
 	EventBits_t uxBits;
-	uxBits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_EVT | WIFI_STOP_REQ_EVT, false, false, 500);//connectTimeout_);
+	uxBits = xEventGroupWaitBits(s_wifi_event_group, SC_DONE_EVT | SC_STOP_REQ_EVT | WIFI_CONNECTED_EVT | WIFI_STOP_REQ_EVT, false, false, 500);//connectTimeout_);
 
 	esp_err_t ret;
 

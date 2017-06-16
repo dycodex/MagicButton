@@ -55,7 +55,7 @@ private:
 	xQueueHandle telemetryDataQueue_ = NULL;
 
 	void doTask(void* taskData);
-
+	void registerToCloud();
 	void initializeSntp();
 	void obtainTime();
 	void getTime(char *timeStr);

@@ -84,6 +84,8 @@ bool NetworkService::reconnect() {
 		NET_DEBUG_PRINT("MQTTSubscribe: %d", rc);
 	}
 
+	registerToCloud();
+
 	return true;
 }
 
@@ -232,4 +234,29 @@ void NetworkService::getTime(char *timeStr) {
 	//NET_DEBUG_PRINT("The current date/time: %s", strftime_buf);
 
 	strcpy(timeStr, strftime_buf);
+}
+
+void NetworkService::registerToCloud() {
+	StuffDevice_t deviceData = svc_.getAppSetting().stuff.device;
+	MQTTMessage message;
+	size_t length = deviceData.toJson().length();
+	char payload[length];
+
+	message.qos = QOS1;
+	message.retained = 0;
+	message.payload = payload;
+	strcpy(payload, deviceData.toJson().c_str());
+	message.payloadlen = length;
+
+	NET_DEBUG_PRINT("MQTT payload: %s", payload);
+	std::string _prefTopic = std::string(svc_.getAppSetting().stuff.config.venueId) + "/" + std::string(svc_.getAppSetting().stuff.device.id);
+	std::string _pubpTopic = _prefTopic + "/reg";
+	NET_DEBUG_PRINT("MQTT Topic: %s", _pubpTopic.c_str());
+
+	int rc;
+	if ((rc = MQTTPublish(&mqttClient, _pubpTopic.c_str(), &message)) != 0) {
+		NET_DEBUG_PRINT("Return code from MQTT publish is %d\n", rc);
+	} else {
+		NET_DEBUG_PRINT("MQTT published");
+	}
 }
