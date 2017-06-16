@@ -31,6 +31,12 @@ Task::Task(std::string taskName, uint16_t stackSize, UBaseType_t priority) {
 	handle   = nullptr;
 } // Task
 
+Task::Task(BaseType_t coreId, std::string taskName, uint16_t stackSize,
+		UBaseType_t priority):
+				Task(taskName, stackSize, priority) {
+	this->coreId = coreId;
+}
+
 Task::~Task() {
 } // ~Task
 
@@ -66,7 +72,12 @@ void Task::start(void *taskData) {
 		ESP_LOGW(tag, "Task::start - There might be a task already running!");
 	}
 	this->taskData = taskData;
-	::xTaskCreate(&runTask, taskName.c_str(), stackSize, this, priority, &handle);
+	if (this->coreId == -1) {
+		::xTaskCreate(&runTask, taskName.c_str(), stackSize, this, priority, &handle);
+	}
+	else {
+		::xTaskCreatePinnedToCore(&runTask, taskName.c_str(), stackSize, this, priority, &handle, coreId);
+	}
 } // start
 
 

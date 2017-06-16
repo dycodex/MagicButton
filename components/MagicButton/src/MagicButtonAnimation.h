@@ -98,8 +98,10 @@ public:
 	MagicButtonCometAnimation(WS2812 &ws2812, RgbLedPalette_t& cometColorPallete);
 
 	void start(uint16_t duration = 2000, MagicButtonAnimationDir_t dir = ANIM_DIR_RIGHT, uint16_t bouncingCount = 0);
+	void stop();
 
 protected:
+	bool forceStop_ = false;
 	RgbLedPalette_t& cometColorPallete_;
 	MagicButtonAnimationDir_t animationDirection_ = ANIM_DIR_RIGHT;
 

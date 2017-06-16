@@ -34,6 +34,7 @@
 class Task {
 public:
 	Task(std::string taskName="Task", uint16_t stackSize=2048, UBaseType_t priority = 5);
+	Task(BaseType_t coreId, std::string taskName="Task", uint16_t stackSize=2048, UBaseType_t priority = 5);
 	virtual ~Task();
 	void setStackSize(uint16_t stackSize);
 	void setPriority(UBaseType_t priority);
@@ -58,6 +59,8 @@ private:
 	std::string taskName;
 	uint16_t stackSize;
 	UBaseType_t priority = 5;
+
+	BaseType_t coreId = -1;
 };
 
 #endif /* COMPONENTS_CPP_UTILS_TASK_H_ */

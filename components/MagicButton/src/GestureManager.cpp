@@ -10,8 +10,8 @@
 
 volatile bool isr_flag_ = 0;
 
-GestureManagerClass::GestureManagerClass() {
-
+GestureManagerClass::GestureManagerClass():
+		Task("gestureManagerTask", 4096, 2){
 }
 
 GestureManagerClass::~GestureManagerClass() {
@@ -27,9 +27,16 @@ void sensorInterrupted() {
 
 bool GestureManagerClass::begin() {
 
-	pinMode(APDS9960_INT_GPIO, INPUT_PULLUP);
+#if APDS9960_INT_ACTIVE_HIGH
+	pinMode(APDS9960_INT_GPIO, INPUT);
+
 	// Initialize interrupt service routine
+	attachInterrupt(APDS9960_INT_GPIO, sensorInterrupted, RISING);
+#else
+	pinMode(APDS9960_INT_GPIO, INPUT_PULLUP);
 	attachInterrupt(APDS9960_INT_GPIO, sensorInterrupted, FALLING);
+#endif
+
 
 	apds_ = new SparkFun_APDS9960();
 
@@ -113,13 +120,15 @@ void GestureManagerClass::run() {
 
 	if (isr_flag_ && apds_ != NULL) {
 
-//		if (apds_->isInterrupted(INT_GESTURE)) {
-//			GESTMGR_DEBUG_PRINT("GESTURE INTERRUPTED");
-//		}
-//
-//		if (apds_->isInterrupted(INT_PROXIMITY)) {
-//			GESTMGR_DEBUG_PRINT("PROX INTERRUPTED");
-//		}
+		//GESTMGR_DEBUG_PRINT("PROX INTERRUPTED");
+
+		if (apds_->isInterrupted(INT_GESTURE)) {
+			GESTMGR_DEBUG_PRINT("GESTURE INTERRUPTED");
+		}
+
+		if (apds_->isInterrupted(INT_PROXIMITY)) {
+			GESTMGR_DEBUG_PRINT("PROX INTERRUPTED");
+		}
 
 		if (proximityDetectionEnabled_ && apds_->isInterrupted(INT_PROXIMITY)) {
 //			GESTMGR_DEBUG_PRINT("PROX INTERRUPTED");
@@ -148,27 +157,37 @@ void GestureManagerClass::run() {
 			detachInterrupt(APDS9960_INT_GPIO);
 
 			handleGesture();
-
+#if APDS9960_INT_ACTIVE_HIGH
+			attachInterrupt(APDS9960_INT_GPIO, sensorInterrupted, RISING);
+#else
 			attachInterrupt(APDS9960_INT_GPIO, sensorInterrupted, FALLING);
+#endif
 		}
 
 		isr_flag_ = false;
 	}
 }
 
-void task_function_run(void *pvParameter)
-{
+//void task_function_run(void *pvParameter)
+//{
+//	for(;;) {
+//		((GestureManagerClass*)pvParameter)->run();
+//		delay(1);
+//	}
+//
+//	vTaskDelete(NULL);
+//}
+//
+//void GestureManagerClass::runAsync() {
+//	TaskHandle_t xHandle = NULL;
+//	xTaskCreate(&task_function_run, "GestureManagerTask", 4096, this, 2, &xHandle);
+//}
+
+void GestureManagerClass::runAsync(void* data) {
 	for(;;) {
-		((GestureManagerClass*)pvParameter)->run();
+		run();
 		delay(1);
 	}
-
-	vTaskDelete(NULL);
-}
-
-void GestureManagerClass::runAsync() {
-	TaskHandle_t xHandle = NULL;
-	xTaskCreate(&task_function_run, "GestureManagerTask", 4096, this, 2, &xHandle);
 }
 
 bool GestureManagerClass::setProximityDetectionEnabled(bool enabled) {

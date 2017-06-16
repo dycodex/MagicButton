@@ -266,7 +266,7 @@ void MagicButtonCometAnimation::start(uint16_t duration, MagicButtonAnimationDir
 		MBANIM_DEBUG_PRINT("Comet Animation DONE");
 
 		animCompleteCount_++;
-		if (animCompleteCount_ > bouncingCount_) {
+		if (animCompleteCount_ > bouncingCount_ || forceStop_) {
 			if (this->animCompletedCb_ != NULL) {
 				this->animCompletedCb_();
 			}
@@ -275,7 +275,13 @@ void MagicButtonCometAnimation::start(uint16_t duration, MagicButtonAnimationDir
 		}
 
 		MagicButtonAnimationDir_t newDir = (animationDirection_ == ANIM_DIR_RIGHT)? ANIM_DIR_LEFT: ANIM_DIR_RIGHT;
+		forceStop_ = false;
 		this->start(duration, newDir, bouncingCount_);
 
 	}, duration, 5);
+}
+
+void MagicButtonCometAnimation::stop() {
+	forceStop_ = true;
+	//MagicButtonAnimation::stop();
 }

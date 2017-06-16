@@ -30,6 +30,7 @@ MagicButtonBoardClass::~MagicButtonBoardClass() {
 }
 
 void MagicButtonBoardClass::begin() {
+
 }
 
 void MagicButtonBoardClass::run() {
@@ -57,6 +58,15 @@ void MagicButtonBoardClass::startCapTouchWheel() {
 //	});
 
 	capTouchWheel_->start(NULL);
+}
+
+void MagicButtonBoardClass::stopCapTouchWheel() {
+
+	if (capTouchWheel_ != NULL) {
+		capTouchWheel_->stop();
+		delete capTouchWheel_;
+		capTouchWheel_ = NULL;
+	}
 }
 
 CapTouchWheel& MagicButtonBoardClass::getCapTouchWheel() {

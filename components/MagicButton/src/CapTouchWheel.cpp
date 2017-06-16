@@ -32,8 +32,8 @@ const int8_t padGpios[] = {
   12,
   14,
   27,
-  33,
-  32
+  32,
+  33
 };
 
 const uint8_t padNos[] = {
@@ -47,7 +47,8 @@ const uint8_t padNos[] = {
   9
 };
 
-CapTouchWheel::CapTouchWheel() {
+CapTouchWheel::CapTouchWheel():
+Task("capTouchWheelTask", 4096, configMAX_PRIORITIES - 2){
 }
 
 CapTouchWheel::~CapTouchWheel() {
@@ -55,8 +56,15 @@ CapTouchWheel::~CapTouchWheel() {
 		delete baselineVals_;
 		baselineVals_ = NULL;
 	}
+
+	for (const auto &ctPair : capTouchesMap_) {
+		touchpad_delete(ctPair.second);
+	}
+
+	capTouchesMap_.clear();
 }
 
+/*
 void rtc_intr(void * arg)
 {
 	uint32_t pad_intr = READ_PERI_REG(SENS_SAR_TOUCH_CTRL2_REG) & 0x3ff;
@@ -81,6 +89,7 @@ void rtc_intr(void * arg)
 		}
 	}
 }
+*/
 
 //void CapTouch_TouchInterruptHandler() {
 //	touchPadInterrupted = true;
@@ -88,16 +97,108 @@ void rtc_intr(void * arg)
 
 void CapTouchWheel::begin() {
 
-	setStackSize(1536);
-	setPriority(configMAX_PRIORITIES - 2);
+	CAPWHEEL_DEBUG_PRINT("Starting CapTouchWheel");
+
+	//setStackSize(1536);
+	//setPriority(configMAX_PRIORITIES - 2);
 
 	baselineVals_ = new uint16_t[TOUCH_PAD_MAX-1];
 
 	touch_pad_init();
-	calibrate();
-	touch_pad_isr_handler_register(rtc_intr, NULL, 0, NULL);
+//	calibrate();
+//	touch_pad_isr_handler_register(rtc_intr, NULL, 0, NULL);
+
+	registerTouches();
 }
 
+void CapTouchWheel::registerTouches() {
+
+	touchpad_handle_t touchpad_dev;
+	xQueueTouchPad_ = NULL;
+
+	for (int pad = 0; pad < TOUCH_PAD_MAX; pad++) {
+		if (pad == 7 || pad == 1) {
+			baselineVals_[pad] = 0;
+			continue;
+		}
+
+		int avgVal = 0;
+		for (int i = 0; i < calibration_count; ++i) {
+			uint16_t touch_value;
+			touch_pad_read((touch_pad_t)pad, &touch_value);
+			avgVal += touch_value;
+		}
+		avgVal /= calibration_count;
+		baselineVals_[pad] = avgVal;
+		int threshold = (pad == 8)? TOUCHPAD_THRESHOLD: baselineVals_[pad] - 50; //100;
+		//int threshold = TOUCHPAD_THRESHOLD;
+
+		//touch_pad_config((touch_pad_t)pad, threshold);
+
+		size_t idx = 0;
+		while ( idx < 8 && padNos[idx] != pad ) ++idx;
+		idx = ( idx == 8 ? -1 : idx );
+		if (idx == -1) {
+			CAPWHEEL_DEBUG_PRINT("FUCK!");
+			break;
+		}
+
+		CAPWHEEL_DEBUG_PRINT("Registering pad %d (%d) with threshold %d", pad, pad, threshold);
+
+		touchpad_dev = touchpad_create((touch_pad_t)pad, threshold, TOUCHPAD_FILTER_VALUE, TOUCHPAD_SINGLE_TRIGGER, 5, &xQueueTouchPad_, 20);
+
+		capTouchesMap_[idx] = touchpad_dev;
+	}
+}
+
+void CapTouchWheel::touchpadTask() {
+
+	portBASE_TYPE xStatus;
+	touchpad_msg_t recv_value;
+	uint16_t value;
+
+	if (xQueueTouchPad_ != NULL) {
+		xStatus = xQueueReceive(this->xQueueTouchPad_, &recv_value, 0);//portMAX_DELAY);
+		if (xStatus == pdPASS) {
+			CAPWHEEL_DEBUG_PRINT("number of touch pad:%d", recv_value.num);
+//			switch (recv_value.event) {
+//				case TOUCHPAD_EVENT_TAP:
+//					CAPWHEEL_DEBUG_PRINT("touch pad event tap");
+//					break;
+//				case TOUCHPAD_EVENT_LONG_PRESS:
+//					CAPWHEEL_DEBUG_PRINT("touch pad event long press");
+//					break;
+//				case TOUCHPAD_EVENT_PUSH:
+//					CAPWHEEL_DEBUG_PRINT("touch pad event push");
+//					break;
+//				case TOUCHPAD_EVENT_RELEASE:
+//					CAPWHEEL_DEBUG_PRINT("touch pad event release");
+//					break;
+//				default:
+//					break;
+//			}
+
+			touchpad_handle_t th = recv_value.handle;
+			int idx = -1;
+			for (auto &i : this->capTouchesMap_) {
+			  if (i.second == th) {
+				 idx = i.first;
+				 break; // to stop searching
+			  }
+			}
+
+			if (idx > -1) {
+				touchActionCallback_(idx, recv_value.event);
+			}
+		}
+	}
+	else {
+		CAPWHEEL_DEBUG_PRINT("touch pads are all deleted");
+		vTaskDelete(NULL);
+	}
+}
+
+/*
 void CapTouchWheel::calibrate() {
 	//int i = 0;
 
@@ -127,6 +228,58 @@ void CapTouchWheel::calibrate() {
 //		touchAttachInterrupt(touchGpioNo, CapTouch_TouchInterruptHandler, threshold);
 //		i++;
 	}
+}
+*/
+
+void CapTouchWheel::runAsync(void* data) {
+	for(;;) {
+
+		if (enableWheelAngleDetection_) {
+			//getWheelAngle();
+			if (wheelAngleChangedCallback_) {
+				int16_t inc = getWheelIncrement();
+				if (lastWheelAngle_ > -1) {
+					wheelAngleChangedCallback_(lastWheelAngle_, inc);
+				}
+			}
+		}
+
+		/*
+		if (touchPadInterrupted) {
+			touchPadInterrupted = false;
+
+			if ((millis() - lastTouchInterruptedTime_) > 200) {
+
+				uint16_t tval;
+				touch_pad_read((touch_pad_t)lastIntrTouchPad, &tval);
+				int16_t threshold = (baselineVals_[lastIntrTouchPad] - 100);
+				//make sure it's the right pad
+				if (tval <= threshold) {
+
+					lastTouchInterruptedTime_ = millis();
+
+					//callback here
+					if (touchActionCallback_) {
+
+						size_t idx = 0;
+						while ( idx < 8 && padNos[idx] != lastIntrTouchPad ) ++idx;
+						idx = ( idx == 8 ? -1 : idx );
+
+						//printf("Touch = %d\n", idx);//lastIntrTouchPad);
+						touchActionCallback_(idx);
+					}
+				}
+			}
+		}
+		*/
+
+		touchpadTask();
+
+		delay(50);
+	}
+}
+
+void CapTouchWheel::run(void) {
 }
 
 int16_t CapTouchWheel::getWheelAngle(void) {
@@ -206,52 +359,6 @@ int16_t CapTouchWheel::getWheelAngle(void) {
 	return degree;
 }
 
-void CapTouchWheel::runAsync(void* data) {
-	for(;;) {
-
-		if (enableWheelAngleDetection_) {
-			//getWheelAngle();
-			if (wheelAngleChangedCallback_) {
-				int16_t inc = getWheelIncrement();
-				if (lastWheelAngle_ > -1) {
-					wheelAngleChangedCallback_(lastWheelAngle_, inc);
-				}
-			}
-		}
-
-		if (touchPadInterrupted) {
-			touchPadInterrupted = false;
-
-			if ((millis() - lastTouchInterruptedTime_) > 200) {
-
-				uint16_t tval;
-				touch_pad_read((touch_pad_t)lastIntrTouchPad, &tval);
-				int16_t threshold = (baselineVals_[lastIntrTouchPad] - 100);
-				//make sure it's the right pad
-				if (tval <= threshold) {
-
-					lastTouchInterruptedTime_ = millis();
-
-					//callback here
-					if (touchActionCallback_) {
-
-						size_t idx = 0;
-						while ( idx < 8 && padNos[idx] != lastIntrTouchPad ) ++idx;
-						idx = ( idx == 8 ? -1 : idx );
-
-						//printf("Touch = %d\n", idx);//lastIntrTouchPad);
-						touchActionCallback_(idx);
-					}
-				}
-			}
-		}
-		delay(50);
-	}
-}
-
-void CapTouchWheel::run(void) {
-}
-
 int16_t CapTouchWheel::getWheelIncrement(void) {
 
 	int16_t curWheelAngle = getWheelAngle();
@@ -279,13 +386,12 @@ int16_t CapTouchWheel::getWheelIncrement(void) {
 		curWheelAngleAdj -= 360;
 	}
 
-	Serial.print("   lastWheelAngle: ");
-	Serial.println(lastWheelAngle_, DEC);
-	Serial.print("   curWheelAngleAdj: ");
-	Serial.println(curWheelAngleAdj, DEC);
+	//CAPWHEEL_DEBUG_PRINT("   lastWheelAngle: %#x", lastWheelAngle_);
+	CAPWHEEL_DEBUG_PRINT("   lastWheelAngle: %d", lastWheelAngle_);
+	CAPWHEEL_DEBUG_PRINT("   curWheelAngleAdj: %d", curWheelAngleAdj);
+
 	int16_t delta = (curWheelAngleAdj - lastWheelAngle_) / wheelAnglePerTick;
-	Serial.print("   delta: ");
-	Serial.println(delta, DEC);
+	CAPWHEEL_DEBUG_PRINT("   delta: %d", delta);
 
 	if (delta != 0) {
 		// If we've made a movement that counts for at least one tick, then update lastWheelAngle to reflect the new position of the pointer

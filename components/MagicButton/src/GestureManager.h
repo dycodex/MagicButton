@@ -14,6 +14,7 @@
 #include <esp_log.h>
 #include <functional>
 #include "MovingAverage.h"
+#include "Task.h"
 
 #define DEBUG_GESTMGR 	1
 
@@ -26,7 +27,8 @@
 #define GESTMGR_INFO_PRINT(...)  	ESP_LOGI("GESTMGR", __VA_ARGS__);
 
 // Constants
-#define APDS9960_INT_GPIO 			34 //5
+#define APDS9960_INT_GPIO 			34
+#define APDS9960_INT_ACTIVE_HIGH 	1  // Set to "0" for earlier board version
 #define APDS9960_PROX_INT_HIGH   	30 // Proximity level for interrupt
 #define APDS9960_PROX_INT_LOW    	0  // No far interrupt
 
@@ -34,7 +36,7 @@
 #define GESTMGR_PROX_LOCK_THRES		20//30
 #define GESTMGR_PROX_LOCK_INTERVAL 	2000
 
-class GestureManagerClass {
+class GestureManagerClass: public Task {
 public:
 
 	typedef std::function<void(int gestureDir)> GestureDetectedCallback;
@@ -45,7 +47,8 @@ public:
 
 	bool begin();
 	void run();
-	void runAsync();
+	void runAsync(void *data);
+
 	bool setGestureRecognitionEnabled(bool enabled);
 	bool setProximityDetectionEnabled(bool enabled);
 

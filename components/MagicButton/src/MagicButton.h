@@ -35,6 +35,7 @@ public:
 //	void activateTouch(uint8_t gpio, CapacitiveTouch::TouchActionCallback cb, uint16_t touchThreshold = 0);
 
 	void startCapTouchWheel();
+	void stopCapTouchWheel();
 	CapTouchWheel& getCapTouchWheel();
 	WS2812& getRgbLed();
 

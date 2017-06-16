@@ -26,9 +26,9 @@ extern "C" {
 #include "WS2812.h"
 #include "Arduino.h"
 #include "MagicButton.h"
-//#include "MB_TestCode.h"
-#include "MB_TestI2S.h"
-#include "MB_TestCap.h"
+//#include "test/MB_TestCode.h"
+//#include "test/MB_TestI2S.h"
+//#include "test/MB_TestCap.h"
 
 const static char *TAG = "APP";
 
@@ -44,6 +44,8 @@ void app_main(void);
 #include "MagicButtonAnimation.h"
 
 RgbLedColor_t fadeColor(200, 20, 80);
+RgbLedColor_t blueColor(10, 10, 190);
+
 //MagicButtonFadeInOutAnimation fadeInOutAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 MagicButtonGlowAnimation glowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 
@@ -67,6 +69,15 @@ MagicButtonArrowAnimation arrowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 // 	}
 // }
 
+#include "AppSetting.h"
+#include "WiFiManager.h"
+#include "Service.h"
+#include "NetworkService.h"
+
+WiFiManager wifiMgr;
+Service svc(AppSetting);
+NetworkService netSvc(svc);
+
 extern "C" {
 	#include <stdlib.h>
 	#include <stdio.h>
@@ -78,6 +89,97 @@ extern "C" {
 
 static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 
+void handleTouch() {
+
+	MagicButtonBoard.getCapTouchWheel().setTouchActionCallback([](uint8_t tNo, touchpad_event_t evt) {
+
+		uint16_t pixelCount = MagicButtonBoard.getRgbLed().getPixelCount();
+		uint8_t untilPixelNo = (uint8_t)map((uint8_t)tNo, 0, 7, 0, (pixelCount - 1));
+
+		bool tapped = false;
+		if (evt == TOUCHPAD_EVENT_TAP) {
+			printf("Touched %d, pixel no: %d\n", tNo, untilPixelNo);
+			tapped = true;
+		}
+		else if (evt == TOUCHPAD_EVENT_PUSH) {
+			printf("Push %d, pixel no: %d\n", tNo, untilPixelNo);
+		}
+		else {
+			return;
+		}
+
+		MagicButtonBoard.getRgbLed().clear();
+//		for(int i = 0; i < pixelCount; i++) {
+//			if (i > untilPixelNo) {
+//				break;
+//			}
+//			MagicButtonBoard.getRgbLed().setPixel(i, (tapped? blueColor: fadeColor));
+//		}
+		MagicButtonBoard.getRgbLed().setPixel(untilPixelNo, (tapped? blueColor: fadeColor));
+		MagicButtonBoard.getRgbLed().show();
+	});
+//
+//	// Should explicitly start the cap touch wheel.
+	MagicButtonBoard.startCapTouchWheel();
+}
+
+static void initializeSntp() {
+	NET_DEBUG_PRINT("Initializing SNTP...");
+	sntp_setoperatingmode(SNTP_OPMODE_POLL);
+	sntp_setservername(0, "pool.ntp.org");
+	sntp_init();
+}
+
+static void obtainTime() {
+	initializeSntp();
+
+	// wait for time to be set
+	time_t now = 0;
+	struct tm timeinfo = { 0 };
+	int retry = 0;
+	const int retry_count = 10;
+	while(timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
+		ESP_LOGD(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
+		time(&now);
+		localtime_r(&now, &timeinfo);
+	}
+}
+
+static void checkTime(void *p) {
+
+	//deal with time
+	time_t now;
+	struct tm timeinfo;
+	time(&now);
+	localtime_r(&now, &timeinfo);
+	// Is time set? If not, tm_year will be (1970 - 1900).
+	if (timeinfo.tm_year < (2016 - 1900)) {
+		ESP_LOGD(TAG, "Time is not set yet. Connecting to WiFi and getting time over NTP.");
+		obtainTime();
+		// update 'now' variable with current time
+		time(&now);
+	}
+
+	char strftime_buf[64];
+	// Set timezone to Eastern Standard Time and print local time
+	//setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
+	//setenv("TZ", "Etc/GMT-7", 1);
+	setenv("TZ", "UTC", 1);
+	tzset();
+	localtime_r(&now, &timeinfo);
+	//strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+	strftime(strftime_buf, sizeof(strftime_buf), "%Y-%m-%dT%H:%M:%S.000Z", &timeinfo);
+	ESP_LOGD(TAG, "The current date/time: %s", strftime_buf);
+
+	cometAnim.stop();
+
+	//handleTouch();
+
+	svc.start();
+	netSvc.start();
+}
+
 void app_main(void)
 {
 	initArduino();
@@ -85,8 +187,52 @@ void app_main(void)
 
 	ESP_LOGI(TAG, "It begins!");
 
+	AppSetting.begin();
+	if (AppSetting.load() == ESP_OK && !INIT_SETTING) {
+		ESP_LOGD(TAG, "AppSetting available!");
+		AppSetting.printVals();
+	}
+	else {
+		ESP_LOGD(TAG, "AppSetting init-ing!");
+		if (AppSetting.initSetting() != ESP_OK) {
+			ESP_LOGE(TAG, "AppSetting init FAILED!");
+		}
+		else {
+			AppSetting.printVals();
+		}
+	}
+
 	MagicButtonBoard.begin();
-	//MagicButton.scanI2C();
+//	MagicButtonBoard.scanI2C();
+
+	svc.begin();
+	netSvc.begin();
+
+	cometAnim.start(2000, ANIM_DIR_RIGHT, 10);
+
+	wifiMgr.onWiFiConnected([](bool newConn) {
+
+		cometAnim.stop();
+//
+		ESP_LOGI(TAG, "WiFi CONNECTED! IP: %s", wifiMgr.getStationIpAddress().c_str());
+		delay(500);
+//		//handleTouch();
+//
+		svc.start();
+		netSvc.start();
+
+//		xTaskCreate(&checkTime, "checkTimeTask", 2048*3, NULL, 1, NULL);
+	});
+
+//	wifiMgr.onWiFiConnecting([](uint64_t elapsed, WiFiManager::Status_t status) {
+//		ESP_LOGI(TAG, "WiFi Connecting...%llu", elapsed);
+//	});
+
+	wifiMgr.begin(WIFI_MODE_STA);
+	//wifiMgr.connect("Andromax-M3Y-C634", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
+	//wifiMgr.connectToAP("DyWare-AP3", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
+	wifiMgr.connectToAP(AppSetting.stuff.config.ssidName, AppSetting.stuff.config.ssidPass, (40000 / portTICK_PERIOD_MS));
+	wifiMgr.start();
 
 	// tryI2SInput(NULL);
 	// xTaskCreatePinnedToCore(tryI2SInput, "tryI2SInput", 2048*20, NULL, configMAX_PRIORITIES - 2, NULL, 1);
@@ -139,33 +285,14 @@ void app_main(void)
 //	fadeInOutAnim.start(2000, 10);
 //	glowAnim.start(3000);
 
-	cometAnim.start(2000, ANIM_DIR_RIGHT, 1);
+	//cometAnim.start(2000, ANIM_DIR_RIGHT);
 
 	// Initialize touch pad peripheral
 //	touch_pad_init();
 	//xTaskCreate(&touchpad_read_task, "touch_pad_read_task", 2048, NULL, 5, NULL);
 //	xTaskCreate(&touchpad_circular_task, "touch_pad_read_task", 2048, NULL, 5, NULL);
 
-
-	MagicButtonBoard.getCapTouchWheel().setTouchActionCallback([](uint8_t tNo) {
-
-		uint16_t pixelCount = MagicButtonBoard.getRgbLed().getPixelCount();
-		uint8_t untilPixelNo = (uint8_t)map((uint8_t)tNo, 0, 7, 0, (pixelCount - 1));
-
-		printf("Touched %d, pixel no: %d\n", tNo, untilPixelNo);
-
-		MagicButtonBoard.getRgbLed().clear();
-		for(int i = 0; i < pixelCount; i++) {
-			if (i > untilPixelNo) {
-				break;
-			}
-			MagicButtonBoard.getRgbLed().setPixel(i, fadeColor);
-		}
-		MagicButtonBoard.getRgbLed().show();
-	});
-
-	// Should explicitly start the cap touch wheel.
-	MagicButtonBoard.startCapTouchWheel();
+//	touchpad_test();
 
 	//	pinMode(39, ANALOG);
 	//	pinMode(36, ANALOG);
@@ -264,30 +391,34 @@ void app_main(void)
 	});
 	*/
 
-	GestureManager.onGestureDetected([](int gestDir) {
-		ESP_LOGI(TAG, "Yuhuuu... gesture detected %d", gestDir);
- //		xTaskCreate(&ws2812ArrowAnimTask, "ws2812ArrowAnimTask", 2048, (void*)gestDir, 2, NULL);
-
-		if (gestDir == DIR_FAR) {
-			glowAnim.start(1000);
-		}
-		else if (gestDir == DIR_NEAR) {
-			glowAnim.start(500);
-		}
-		else if (gestDir == DIR_NONE) {
-
-		}
-		else {
-			arrowAnim.animateArrow((MagicButtonAnimationArrow_t)gestDir);
-		}
-
- //		if (gestDir == DIR_NEAR) {
- //			GestureManager.setGestureRecognitionEnabled(false);
- //		}
-
-	});
-
-	if (GestureManager.begin()) {
-		GestureManager.runAsync();
-	}
+//	GestureManager.onGestureDetected([](int gestDir) {
+//		ESP_LOGI(TAG, "Yuhuuu... gesture detected %d", gestDir);
+// //		xTaskCreate(&ws2812ArrowAnimTask, "ws2812ArrowAnimTask", 2048, (void*)gestDir, 2, NULL);
+//
+//		if (gestDir == DIR_FAR) {
+//			glowAnim.start(1000);
+//		}
+//		else if (gestDir == DIR_NEAR) {
+//			glowAnim.start(500);
+//		}
+//		else if (gestDir == DIR_NONE) {
+//
+//		}
+//		else if (gestDir > 10) {
+//
+//		}
+//		else {
+//			arrowAnim.animateArrow((MagicButtonAnimationArrow_t)gestDir);
+//		}
+//
+// //		if (gestDir == DIR_NEAR) {
+// //			GestureManager.setGestureRecognitionEnabled(false);
+// //		}
+//
+//	});
+//
+//	if (GestureManager.begin()) {
+//		//GestureManager.runAsync();
+//		GestureManager.start();
+//	}
 }
