@@ -87,6 +87,9 @@ public:
 	MagicButtonGlowAnimation(WS2812 &ws2812, RgbLedColor_t &color);
 
 	void start(uint16_t duration = 2000);
+	void setColor(RgbLedColor_t& col) {
+		glowColor_ = col;
+	}
 
 protected:
 	RgbLedColor_t& glowColor_;
@@ -99,6 +102,9 @@ public:
 
 	void start(uint16_t duration = 2000, MagicButtonAnimationDir_t dir = ANIM_DIR_RIGHT, uint16_t bouncingCount = 0);
 	void stop();
+	void setColorPallete(RgbLedPalette_t& cometColorPallete) {
+		cometColorPallete_ = cometColorPallete;
+	}
 
 protected:
 	bool forceStop_ = false;

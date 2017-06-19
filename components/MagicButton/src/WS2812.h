@@ -47,6 +47,12 @@ struct RgbLedColor_t
     {
     }
 
+    void setColor(uint32_t colorcode) {
+    	red = ((colorcode >> 16) & 0xFF);
+    	green = ((colorcode >> 8) & 0xFF);
+    	blue = ((colorcode >> 0) & 0xFF);
+    }
+
     bool operator == (const RgbLedColor_t &c) const
     {
         return(this->red == c.red and this->green == c.green and this->blue == c.blue);

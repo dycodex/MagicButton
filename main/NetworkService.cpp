@@ -7,20 +7,110 @@
 
 #include "NetworkService.h"
 
+#define MQTT_CONNECTED_EVT 	BIT0
 #define MQTT_STOP_REQ_EVT 	BIT1
+#define MQTT_SUBSDATA_EVT 	BIT2
+
+//static subscription_data_t subscriptionData;
+//static xQueueHandle subscriptionDataQueue_ = NULL;
+
+static EventGroupHandle_t mqttEventGroup_ = NULL;
+static mqtt_subscription_data_t lastSubcriptionData_;
+
+static void connected_cb(void *self, void *params)
+{
+	NET_DEBUG_PRINT("MQTT Connected\n");
+
+//    mqtt_client *client = (mqtt_client *)self;
+//    mqtt_subscribe(client, "/test-andri-sub", 0);
+//    mqtt_publish(client, "/test-andri", "howdy!", 6, 0, 0);
+
+	xEventGroupSetBits(mqttEventGroup_, MQTT_CONNECTED_EVT);
+}
+static void disconnected_cb(void *self, void *params)
+{
+	NET_DEBUG_PRINT("MQTT Disconnected\n");
+	xEventGroupClearBits(mqttEventGroup_, MQTT_CONNECTED_EVT);
+}
+static void reconnect_cb(void *self, void *params)
+{
+	xEventGroupClearBits(mqttEventGroup_, MQTT_CONNECTED_EVT);
+}
+static void subscribe_cb(void *self, void *params)
+{
+	NET_DEBUG_PRINT("MQTT Subscribe OK\n");
+}
+static void publish_cb(void *self, void *params)
+{
+
+}
+static void data_cb(void *self, void *params)
+{
+//	NET_DEBUG_PRINT("Got subs data");
+
+    mqtt_client *client = (mqtt_client *)self;
+    mqtt_event_data_t *event_data = (mqtt_event_data_t *)params;
+
+    /*
+    if (subscriptionDataQueue_) {
+
+    	mqtt_subscription_data_t subscriptionData = {};
+    	subscriptionData.client = client;
+
+        if (event_data->data_offset == 0) {
+
+            char *topic = (char *)malloc(event_data->topic_length + 1);
+            memcpy(topic, event_data->topic, event_data->topic_length);
+            topic[event_data->topic_length] = 0;
+//            NET_DEBUG_PRINT("Sub topic: %s\n", topic);
+            subscriptionData.topic.assign(topic, event_data->topic_length + 1);
+            free(topic);
+        }
+
+        char *data = malloc(event_data->data_length + 1);
+        memcpy(data, event_data->data, event_data->data_length);
+        data[event_data->data_length] = 0;
+//        subscriptionData.payload = std::string(data);
+        subscriptionData.payload.assign(data, event_data->data_length + 1);
+        free(data);
+
+        xQueueSend(subscriptionDataQueue_, &subscriptionData, 0);
+    }
+    */
+
+    //save to lastSubcriptionData_
+
+    lastSubcriptionData_.client = client;
+
+	if (event_data->data_offset == 0) {
+
+		char *topic = (char *)malloc(event_data->topic_length + 1);
+		memcpy(topic, event_data->topic, event_data->topic_length);
+		topic[event_data->topic_length] = 0;
+//      NET_DEBUG_PRINT("Sub topic: %s\n", topic);
+		lastSubcriptionData_.topic.assign(topic, event_data->topic_length + 1);
+		free(topic);
+	}
+
+	char *data = malloc(event_data->data_length + 1);
+	memcpy(data, event_data->data, event_data->data_length);
+	data[event_data->data_length] = 0;
+//  subscriptionData.payload = std::string(data);
+	lastSubcriptionData_.payload.assign(data, event_data->data_length + 1);
+	free(data);
+
+    xEventGroupSetBits(mqttEventGroup_, MQTT_SUBSDATA_EVT);
+}
 
 NetworkService::NetworkService(Service& svc):
 Task(1, "netSvcTask", 4096*2, 2), svc_(svc) {
 }
 
 NetworkService::~NetworkService() {
-	if (telemetryDataQueue_ != NULL) {
-		vQueueDelete(telemetryDataQueue_);
-	}
-}
-
-static void messageHandler_func(MessageData *md) {
-	NET_DEBUG_PRINT("Subscription received!: %.*s", md->topicName->lenstring.len, md->topicName->lenstring.data);
+	stop();
+//	if (requestDataQueue_ != NULL) {
+//		vQueueDelete(requestDataQueue_);
+//	}
 }
 
 bool NetworkService::begin() {
@@ -30,68 +120,68 @@ bool NetworkService::begin() {
 	}
 
 	xEventGroupClearBits(mqttEventGroup_, MQTT_STOP_REQ_EVT);
+	xEventGroupClearBits(mqttEventGroup_, MQTT_SUBSDATA_EVT);
 
-	NET_DEBUG_PRINT("Starting networking...");
-	NetworkInit(&mqttNetwork);
+//	if (subscriptionDataQueue_ == 0) {
+//		subscriptionDataQueue_ = xQueueCreate(10, sizeof(mqtt_subscription_data_t));
+//	}
 
-	NET_DEBUG_PRINT("MQTTClientInit  ...");
-	MQTTClientInit(&mqttClient, &mqttNetwork,
-			10000,            		// command_timeout_ms
-			mqttSendBuffer,         //sendbuf,
-			sizeof(mqttSendBuffer), //sendbuf_size,
-			mqttReadBuffer,         //readbuf,
-			sizeof(mqttReadBuffer)  //readbuf_size
-			);
+	NET_DEBUG_PRINT("Starting MQTT...");
 
-	MQTTString clientId = MQTTString_initializer;
-	clientId.cstring = svc_.getAppSetting().stuff.device.id;// "ANDRI-MQTT-CLIENT1";
-
-	mqttConnectData = MQTTPacket_connectData_initializer;
-	mqttConnectData.clientID = clientId;
-	mqttConnectData.willFlag = 0;
-	mqttConnectData.MQTTVersion = 3;
-	mqttConnectData.keepAliveInterval = 10;
-	mqttConnectData.cleansession = 1;
+	mqttSettings_.connected_cb = connected_cb;
+	mqttSettings_.disconnected_cb = disconnected_cb;
+	mqttSettings_.reconnect_cb = reconnect_cb,
+	mqttSettings_.subscribe_cb = subscribe_cb,
+	mqttSettings_.publish_cb = publish_cb,
+	mqttSettings_.data_cb = data_cb,
+	mqttSettings_.port = svc_.getAppSetting().stuff.config.mqttPort;
+	char* address = svc_.getAppSetting().stuff.config.mqttServer;
+	strcpy(mqttSettings_.host, address);
+	strcpy(mqttSettings_.client_id, svc_.getAppSetting().stuff.device.id);
+	//strcpy(settings.username, svc_.getAppSetting().stuff.account.userId);
+	//strcpy(settings.password, svc_.getAppSetting().stuff.account.userToken);
+	strcpy(mqttSettings_.lwt_topic, "/lwt");
+	strcpy(mqttSettings_.lwt_msg, "offline");
+	mqttSettings_.lwt_qos = 0;
+	mqttSettings_.lwt_retain = 0;
 
 	return true;
 }
 
 bool NetworkService::reconnect() {
 
-	int rc;
+	//wait for connection
 
-	NET_DEBUG_PRINT("NetworkConnect  ...");
+	EventBits_t uxBits;
+	uxBits = xEventGroupWaitBits(mqttEventGroup_, MQTT_CONNECTED_EVT, false, false, portMAX_DELAY);
 
-	char* address = svc_.getAppSetting().stuff.config.mqttServer;//"iot.eclipse.org";
-	if ((rc = NetworkConnect(&mqttNetwork, address, svc_.getAppSetting().stuff.config.mqttPort)) != 0) {
-		NET_DEBUG_PRINT("Return code from network connect is %d\n", rc);
-		return false;
-	}
-
-	NET_DEBUG_PRINT("MQTTConnect  ...");
-	rc = MQTTConnect(&mqttClient, &mqttConnectData);
-	if (rc != SUCCESS) {
-		NET_DEBUG_PRINT("MQTTConnect: %d", rc);
+	if (uxBits & MQTT_CONNECTED_EVT) {
+		//NET_DEBUG_PRINT("MQTT Ready!");
 	}
 
 	std::string _prefTopic = std::string(svc_.getAppSetting().stuff.config.venueId) + "/" + std::string(svc_.getAppSetting().stuff.device.id);
 	std::string _respTopic = _prefTopic + "/response";
 
-	NET_DEBUG_PRINT("MQTTSubscribe to: %s", _respTopic.c_str());
+	NET_DEBUG_PRINT("MQTT Subscribe to: %s", _respTopic.c_str());
 
-	rc = MQTTSubscribe(&mqttClient, _respTopic.c_str(), QOS1, messageHandler_func);
-	if (rc != SUCCESS) {
-		NET_DEBUG_PRINT("MQTTSubscribe: %d", rc);
-	}
+	mqtt_subscribe(mqttClient_, _respTopic.c_str(), 0);
 
 	registerToCloud();
 
 	return true;
 }
 
+void NetworkService::start(void* taskData) {
+
+	mqttClient_ = mqtt_start(&mqttSettings_);
+
+	Task::start(taskData);
+}
+
 bool NetworkService::stop() {
-	MQTTDisconnect(&mqttClient);
-	NetworkDisconnect(&mqttNetwork);
+
+	mqtt_stop();
+	mqtt_destroy(mqttClient_);
 
 	xEventGroupSetBits(mqttEventGroup_, MQTT_STOP_REQ_EVT);
 
@@ -100,52 +190,63 @@ bool NetworkService::stop() {
 
 void NetworkService::run() {
 
-	if (!mqttClient.isconnected) {
-		reconnect();
+//	if (!mqttClient.isconnected) {
+//		reconnect();
+//		return;
+//	}
+
+//	if (subscriptionDataQueue_ != 0) {
+////		mqtt_subscription_data_t subsData;
+//		if (xQueueReceive(subscriptionDataQueue_, &lastSubcriptionData_, 0)) {
+//
+//			//do something
+//			handleSubscribedData(lastSubcriptionData_);
+//			NET_DEBUG_PRINT("Queued new subscribed data");
+//		}
+//	}
+
+	EventBits_t uxBits;
+
+	uxBits = xEventGroupWaitBits(mqttEventGroup_, MQTT_SUBSDATA_EVT, true, false, 10); //clear on exit
+	if (uxBits & MQTT_SUBSDATA_EVT) {
+		//NET_DEBUG_PRINT("MQTT Data Ready: %s", lastSubcriptionData_.topic.c_str());
+		handleSubscriptionData(lastSubcriptionData_);
+	}
+
+	if (this->requestDataQueue_ == 0) {
 		return;
 	}
 
-	if (this->telemetryDataQueue_ == 0) {
-		return;
-	}
-
-	int rc;
+	//int rc;
 
 	StuffAttr_t stuffAttr;
-	if (xQueueReceive(this->telemetryDataQueue_, &stuffAttr, 2000/portTICK_PERIOD_MS) == pdFALSE) {
+	if (xQueueReceive(this->requestDataQueue_, &stuffAttr, 2000/portTICK_PERIOD_MS) == pdFALSE) {
 		//NET_DEBUG_PRINT("NO DATA QUEUED");
 		return;
+	}
+
+	//EventBits_t uxBits;
+	uxBits = xEventGroupWaitBits(mqttEventGroup_, MQTT_CONNECTED_EVT, false, false, portMAX_DELAY);
+
+	if (uxBits & MQTT_CONNECTED_EVT) {
+		//NET_DEBUG_PRINT("MQTT Ready!");
 	}
 
 	char strftime_buf[64];
 	getTime(stuffAttr.datetime);
 
-	MQTTMessage message;
-
 	size_t msgLen = stuffAttr.toJson().length();
 	char payload[msgLen];
 
-	message.qos = QOS1;
-	message.retained = 0;
-	message.payload = payload;
 	//sprintf(payload, "message number %d", count);
 	strcpy(payload, stuffAttr.toJson().c_str());
 	NET_DEBUG_PRINT("MQTT payload: %s", payload);
-
-	message.payloadlen = msgLen;//strlen(payload);
 
 	std::string _prefTopic = std::string(svc_.getAppSetting().stuff.config.venueId) + "/" + std::string(svc_.getAppSetting().stuff.device.id);
 	std::string _pubpTopic = _prefTopic + "/buttons";
 	NET_DEBUG_PRINT("MQTT Topic: %s", _pubpTopic.c_str());
 
-	if ((rc = MQTTPublish(&mqttClient, _pubpTopic.c_str(), &message)) != 0) {
-		NET_DEBUG_PRINT("Return code from MQTT publish is %d\n", rc);
-	} else {
-		NET_DEBUG_PRINT("MQTT published");
-	}
-
-//	MQTTYield(&mqttClient, 1000);
-//	vTaskDelay(3000/portTICK_PERIOD_MS);
+	mqtt_publish(mqttClient_, _pubpTopic.c_str(), payload, msgLen, 0, 0);
 }
 
 void NetworkService::runAsync(void* taskData) {
@@ -154,11 +255,12 @@ void NetworkService::runAsync(void* taskData) {
 
 void NetworkService::doTask(void* taskData) {
 
-	if (telemetryDataQueue_ == NULL) {
-		telemetryDataQueue_ = xQueueCreate(10, sizeof(StuffAttr_t));
-	}
+//	if (requestDataQueue_ == NULL) {
+//		requestDataQueue_ = xQueueCreate(10, sizeof(StuffAttr_t));
+//	}
 
-	svc_.subscribeTelemetryData(&telemetryDataQueue_);
+	//Subscribe to service and get the data queue
+	svc_.subscribeForRequestData(&requestDataQueue_);
 
 	//deal with time
 	char strftime_buf[64];
@@ -167,7 +269,13 @@ void NetworkService::doTask(void* taskData) {
 
 	reconnect();
 
+	//at this point, all is ready
+	if (networkServiceReadyCallback_) {
+		networkServiceReadyCallback_();
+	}
+
 	while(1) {
+
 		run();
 
 		EventBits_t uxBits;
@@ -238,25 +346,35 @@ void NetworkService::getTime(char *timeStr) {
 
 void NetworkService::registerToCloud() {
 	StuffDevice_t deviceData = svc_.getAppSetting().stuff.device;
-	MQTTMessage message;
+
 	size_t length = deviceData.toJson().length();
 	char payload[length];
 
-	message.qos = QOS1;
-	message.retained = 0;
-	message.payload = payload;
 	strcpy(payload, deviceData.toJson().c_str());
-	message.payloadlen = length;
 
 	NET_DEBUG_PRINT("MQTT payload: %s", payload);
 	std::string _prefTopic = std::string(svc_.getAppSetting().stuff.config.venueId) + "/" + std::string(svc_.getAppSetting().stuff.device.id);
 	std::string _pubpTopic = _prefTopic + "/reg";
 	NET_DEBUG_PRINT("MQTT Topic: %s", _pubpTopic.c_str());
 
-	int rc;
-	if ((rc = MQTTPublish(&mqttClient, _pubpTopic.c_str(), &message)) != 0) {
-		NET_DEBUG_PRINT("Return code from MQTT publish is %d\n", rc);
-	} else {
-		NET_DEBUG_PRINT("MQTT published");
+	mqtt_publish(mqttClient_, _pubpTopic.c_str(), payload, length, 0, 0);
+}
+
+void NetworkService::handleSubscriptionData(mqtt_subscription_data_t &subsData) {
+
+	if (subsData.client != mqttClient_) {
+		NET_DEBUG_PRINT("NOT for me");
+		return;
 	}
+
+//	NET_DEBUG_PRINT("Sub topic: %s", subsData.topic.c_str());
+//	NET_DEBUG_PRINT("Sub payload: %s", subsData.payload.c_str());
+
+	if (subscriptionDataAvailableCallback_) {
+		subscriptionDataAvailableCallback_(subsData);
+	}
+
+//	//if (subsData.topic.find_last_of("response") != std::string::npos) {
+//		svc_.notifyResponse(subsData.payload);
+//	//}
 }

@@ -9,3 +9,5 @@
 
 COMPONENT_ADD_INCLUDEDIRS := . test
 COMPONENT_SRCDIRS := . test
+
+CXXFLAGS += -fpermissive

@@ -47,16 +47,16 @@ RgbLedColor_t fadeColor(200, 20, 80);
 RgbLedColor_t blueColor(10, 10, 190);
 
 //MagicButtonFadeInOutAnimation fadeInOutAnim(MagicButtonBoard.getRgbLed(), fadeColor);
-MagicButtonGlowAnimation glowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
+//MagicButtonGlowAnimation glowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 
 RgbLedColor_t myColors[] = { 0xFF0000, 0x00FF00, 0x0000FF };
 RgbLedPalette_t paletteRgb = { 3, myColors };
 MagicButtonCometAnimation cometAnim(MagicButtonBoard.getRgbLed(), paletteRgb);
 
-MagicButtonArrowAnimation arrowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
+//MagicButtonArrowAnimation arrowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 
-// WS2812Color_t fadeColor2(100, 200, 70);
-// MagicButtonFadingAnimation  fadingAnim(ws2812, fadeColor2);
+RgbLedColor_t glowColor(100, 200, 70);
+MagicButtonGlowAnimation  glowAnim(MagicButtonBoard.getRgbLed(), glowColor);
 
 // #include "FilesystemHandler.h"
 
@@ -74,54 +74,24 @@ MagicButtonArrowAnimation arrowAnim(MagicButtonBoard.getRgbLed(), fadeColor);
 #include "Service.h"
 #include "NetworkService.h"
 
+//#include "test/espmqtt_test.h"
+
 WiFiManager wifiMgr;
 Service svc(AppSetting);
 NetworkService netSvc(svc);
 
-extern "C" {
-	#include <stdlib.h>
-	#include <stdio.h>
-	#include "esp_vfs.h"
-	#include "esp_vfs_fat.h"
-	#include "esp_system.h"
-	#include "wear_levelling.h"
-}
+//EventGroupHandle_t net_event_group = NULL;
 
-static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
+//extern "C" {
+//	#include <stdlib.h>
+//	#include <stdio.h>
+//	#include "esp_vfs.h"
+//	#include "esp_vfs_fat.h"
+//	#include "esp_system.h"
+//	#include "wear_levelling.h"
+//}
 
-void handleTouch() {
-
-	MagicButtonBoard.getCapTouchWheel().setTouchActionCallback([](uint8_t tNo, touchpad_event_t evt) {
-
-		uint16_t pixelCount = MagicButtonBoard.getRgbLed().getPixelCount();
-		uint8_t untilPixelNo = (uint8_t)map((uint8_t)tNo, 0, 7, 0, (pixelCount - 1));
-
-		bool tapped = false;
-		if (evt == TOUCHPAD_EVENT_TAP) {
-			printf("Touched %d, pixel no: %d\n", tNo, untilPixelNo);
-			tapped = true;
-		}
-		else if (evt == TOUCHPAD_EVENT_PUSH) {
-			printf("Push %d, pixel no: %d\n", tNo, untilPixelNo);
-		}
-		else {
-			return;
-		}
-
-		MagicButtonBoard.getRgbLed().clear();
-//		for(int i = 0; i < pixelCount; i++) {
-//			if (i > untilPixelNo) {
-//				break;
-//			}
-//			MagicButtonBoard.getRgbLed().setPixel(i, (tapped? blueColor: fadeColor));
-//		}
-		MagicButtonBoard.getRgbLed().setPixel(untilPixelNo, (tapped? blueColor: fadeColor));
-		MagicButtonBoard.getRgbLed().show();
-	});
-//
-//	// Should explicitly start the cap touch wheel.
-	MagicButtonBoard.startCapTouchWheel();
-}
+//static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 
 static void initializeSntp() {
 	NET_DEBUG_PRINT("Initializing SNTP...");
@@ -180,6 +150,25 @@ static void checkTime(void *p) {
 	netSvc.start();
 }
 
+void handleButtonResponse(std::string &jsonString) {
+	//parse json
+	ESP_LOGI(TAG, "GOT RESPONSE FROM QUEUE: %s", jsonString.c_str());
+
+	JsonObject json = JSON::parseObject(jsonString);
+	auto indicatorString = json.getString("indicator");
+	//SVC_DEBUG_PRINT("INDICATOR: %s", indicatorString.c_str());
+
+	unsigned long indicatorLong = strtol(indicatorString.c_str(), NULL, 16);
+	ESP_LOGI(TAG, "INDICATOR: %lx", indicatorLong);
+	if (indicatorLong > 0) {
+
+		glowColor.setColor(indicatorLong);
+		glowAnim.start(1400);
+	}
+
+	JSON::deleteObject(json);
+}
+
 void app_main(void)
 {
 	initArduino();
@@ -205,23 +194,27 @@ void app_main(void)
 	MagicButtonBoard.begin();
 //	MagicButtonBoard.scanI2C();
 
-	svc.begin();
-	netSvc.begin();
+	cometAnim.start(2000, ANIM_DIR_RIGHT, 30);
 
-	cometAnim.start(2000, ANIM_DIR_RIGHT, 10);
+	svc.begin();
+
+	netSvc.begin();
+	netSvc.onReady([]() {
+		cometAnim.stop();
+	});
+
+	netSvc.onSubscriptionDataAvailable([](mqtt_subscription_data_t &subsData) {
+		ESP_LOGI(TAG, "Sub topic: %s", subsData.topic.c_str());
+		ESP_LOGI(TAG, "Sub payload: %s", subsData.payload.c_str());
+
+		handleButtonResponse(subsData.payload);
+	});
 
 	wifiMgr.onWiFiConnected([](bool newConn) {
-
-		cometAnim.stop();
-//
 		ESP_LOGI(TAG, "WiFi CONNECTED! IP: %s", wifiMgr.getStationIpAddress().c_str());
-		delay(500);
-//		//handleTouch();
-//
-		svc.start();
-		netSvc.start();
 
 //		xTaskCreate(&checkTime, "checkTimeTask", 2048*3, NULL, 1, NULL);
+//		connectMQTT();
 	});
 
 //	wifiMgr.onWiFiConnecting([](uint64_t elapsed, WiFiManager::Status_t status) {
@@ -230,9 +223,19 @@ void app_main(void)
 
 	wifiMgr.begin(WIFI_MODE_STA);
 	//wifiMgr.connect("Andromax-M3Y-C634", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
-	//wifiMgr.connectToAP("DyWare-AP3", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
-	wifiMgr.connectToAP(AppSetting.stuff.config.ssidName, AppSetting.stuff.config.ssidPass, (40000 / portTICK_PERIOD_MS));
+	wifiMgr.connectToAP("GERES10", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
+	//wifiMgr.connectToAP(AppSetting.stuff.config.ssidName, AppSetting.stuff.config.ssidPass, (40000 / portTICK_PERIOD_MS));
 	wifiMgr.start();
+
+	// Wait for connection, this will block
+	if (wifiMgr.waitForConnection()) {
+
+		//cometAnim.stop();
+
+		svc.start();
+		netSvc.start();
+
+	}
 
 	// tryI2SInput(NULL);
 	// xTaskCreatePinnedToCore(tryI2SInput, "tryI2SInput", 2048*20, NULL, configMAX_PRIORITIES - 2, NULL, 1);

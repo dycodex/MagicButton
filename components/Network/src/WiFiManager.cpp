@@ -189,6 +189,10 @@ tcpip_adapter_ip_info_t WiFiManager::getStationIpInfo() {
 	return ipInfo;
 }
 
+bool WiFiManager::waitForConnection() {
+	EventBits_t uxBits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_EVT, false, false, connectTimeout_);
+	return (uxBits & WIFI_CONNECTED_EVT);
+}
 
 void WiFiManager::run() {
 
@@ -355,3 +359,4 @@ esp_err_t WiFiManager::startSmartConfig(smartconfig_type_t sc_type, uint32_t tic
 
 	return ESP_OK;
 }
+

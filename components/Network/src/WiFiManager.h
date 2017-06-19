@@ -75,6 +75,8 @@ public:
 
 	void notifyEvent(system_event_t *event);
 
+	bool waitForConnection();
+
 private:
 	wifi_mode_t currentMode_ = WIFI_MODE_NULL;
 
