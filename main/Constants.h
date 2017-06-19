@@ -9,6 +9,7 @@
 #define MAIN_CONSTANTS_H_
 
 #define INIT_SETTING                 0 //Set to 1 to FORCE setting to default values
+#define BUTTON_COUNT                16
 
 #define DEFAULT_WIFI_SSID           "DyWare-AP3"
 #define DEFAULT_WIFI_PASSWORD       "p@ssw0rd"

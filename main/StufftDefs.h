@@ -62,6 +62,7 @@ struct StuffDevice_t {
 	char name[30];
 	char types[30];
 	char subtypes[30];
+	int buttonCount = BUTTON_COUNT;
 	//byte sensorProbesCount;
 
 	String toJson() {
@@ -71,6 +72,7 @@ struct StuffDevice_t {
 		json += "\"name\": \"" + String(name) + "\",";
 		json += "\"types\": \"" + String(types) + "\",";
 		//json += "\"sensorProbesCount\": " + String(sensorProbesCount) + ",";
+		json += "\"buttoncount\":" + String(buttonCount, 10) + ",";
 		json += "\"subtypes\": \"" + String(subtypes) + "\"";
 		json += "}";
 
