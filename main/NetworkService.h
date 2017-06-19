@@ -43,7 +43,7 @@ extern "C" {
 #define NET_DEBUG_PRINT(...)  ESP_LOGI("BUTTON NET", __VA_ARGS__);
 #define NET_INFO_PRINT(...)   ESP_LOGI("BUTTON NET", __VA_ARGS__);
 
-typedef struct mqtt_subscription_data_t {
+struct mqtt_subscription_data_t {
 		mqtt_client *client;
 		std::string topic;
 		std::string payload;

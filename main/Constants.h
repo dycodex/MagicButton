@@ -8,7 +8,7 @@
 #ifndef MAIN_CONSTANTS_H_
 #define MAIN_CONSTANTS_H_
 
-#define INIT_SETTING                 0
+#define INIT_SETTING                 0 //Set to 1 to FORCE setting to default values
 
 #define DEFAULT_WIFI_SSID           "DyWare-AP3"
 #define DEFAULT_WIFI_PASSWORD       "p@ssw0rd"
@@ -27,7 +27,7 @@
 #define DEFAULT_AP_PASS             "11223344"
 #define DEFAULT_IP_ADDR             "192.168.9.1"
 
-#define DEFAULT_SSID_NAME             "DyWare-AP3"
-#define DEFAULT_SSID_PASS             "p@ssw0rd"
+#define DEFAULT_SSID_NAME           "DyWare-AP3"
+#define DEFAULT_SSID_PASS           "p@ssw0rd"
 
 #endif /* MAIN_CONSTANTS_H_ */

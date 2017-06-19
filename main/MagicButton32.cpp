@@ -93,63 +93,6 @@ NetworkService netSvc(svc);
 
 //static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 
-static void initializeSntp() {
-	NET_DEBUG_PRINT("Initializing SNTP...");
-	sntp_setoperatingmode(SNTP_OPMODE_POLL);
-	sntp_setservername(0, "pool.ntp.org");
-	sntp_init();
-}
-
-static void obtainTime() {
-	initializeSntp();
-
-	// wait for time to be set
-	time_t now = 0;
-	struct tm timeinfo = { 0 };
-	int retry = 0;
-	const int retry_count = 10;
-	while(timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
-		ESP_LOGD(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-		vTaskDelay(2000 / portTICK_PERIOD_MS);
-		time(&now);
-		localtime_r(&now, &timeinfo);
-	}
-}
-
-static void checkTime(void *p) {
-
-	//deal with time
-	time_t now;
-	struct tm timeinfo;
-	time(&now);
-	localtime_r(&now, &timeinfo);
-	// Is time set? If not, tm_year will be (1970 - 1900).
-	if (timeinfo.tm_year < (2016 - 1900)) {
-		ESP_LOGD(TAG, "Time is not set yet. Connecting to WiFi and getting time over NTP.");
-		obtainTime();
-		// update 'now' variable with current time
-		time(&now);
-	}
-
-	char strftime_buf[64];
-	// Set timezone to Eastern Standard Time and print local time
-	//setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
-	//setenv("TZ", "Etc/GMT-7", 1);
-	setenv("TZ", "UTC", 1);
-	tzset();
-	localtime_r(&now, &timeinfo);
-	//strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-	strftime(strftime_buf, sizeof(strftime_buf), "%Y-%m-%dT%H:%M:%S.000Z", &timeinfo);
-	ESP_LOGD(TAG, "The current date/time: %s", strftime_buf);
-
-	cometAnim.stop();
-
-	//handleTouch();
-
-	svc.start();
-	netSvc.start();
-}
-
 void handleButtonResponse(std::string &jsonString) {
 	//parse json
 	ESP_LOGI(TAG, "GOT RESPONSE FROM QUEUE: %s", jsonString.c_str());
@@ -222,9 +165,7 @@ void app_main(void)
 //	});
 
 	wifiMgr.begin(WIFI_MODE_STA);
-	//wifiMgr.connect("Andromax-M3Y-C634", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
-	wifiMgr.connectToAP("GERES10", "p@ssw0rd", (40000 / portTICK_PERIOD_MS));
-	//wifiMgr.connectToAP(AppSetting.stuff.config.ssidName, AppSetting.stuff.config.ssidPass, (40000 / portTICK_PERIOD_MS));
+	wifiMgr.connectToAP(AppSetting.stuff.config.ssidName, AppSetting.stuff.config.ssidPass, (40000 / portTICK_PERIOD_MS));
 	wifiMgr.start();
 
 	// Wait for connection, this will block
