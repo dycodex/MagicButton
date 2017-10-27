@@ -92,22 +92,12 @@ void Service::handleResponse(std::string& jsonString) {
 //	JSON::deleteObject(json);
 }
 
-void Service::handleTouch(uint8_t tNo, touchpad_event_t evt) {
-
+void Service::handleTouch(uint8_t tNo, touchpad_cb_type_t evt) {
 	uint16_t pixelCount = MagicButtonBoard.getRgbLed().getPixelCount();
 	uint8_t untilPixelNo = (uint8_t)map((uint8_t)tNo, 0, 7, 0, (pixelCount - 1));
 
-	bool tapped = false;
-	if (evt == TOUCHPAD_EVENT_TAP) {
-		printf("Touched %d, pixel no: %d\n", tNo, untilPixelNo);
-		tapped = true;
-	}
-	else if (evt == TOUCHPAD_EVENT_PUSH) {
-		printf("Push %d, pixel no: %d\n", tNo, untilPixelNo);
-	}
-	else {
-		return;
-	}
+	// DEFAULT TO TAP
+	bool tapped = true;
 
 	MagicButtonBoard.getRgbLed().clear();
 //		for(int i = 0; i < pixelCount; i++) {

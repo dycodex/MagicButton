@@ -47,7 +47,7 @@ private:
 
 	xQueueHandle requestDataQueue_ = 0, responseDataQueue = 0;
 
-	void handleTouch(uint8_t tNo, touchpad_event_t evt);
+	void handleTouch(uint8_t tNo, touchpad_cb_type_t evt);
 	void handleResponse(std::string &jsonString);
 
 	//MagicButtonCometAnimation *cometAnimation_ = NULL;

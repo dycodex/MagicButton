@@ -170,12 +170,9 @@ void app_main(void)
 
 	// Wait for connection, this will block
 	if (wifiMgr.waitForConnection()) {
-
 		//cometAnim.stop();
-
 		svc.start();
 		netSvc.start();
-
 	}
 
 	// tryI2SInput(NULL);

@@ -9,7 +9,7 @@
 #define MAIN_CONSTANTS_H_
 
 #define INIT_SETTING                 0 //Set to 1 to FORCE setting to default values
-#define BUTTON_COUNT                16
+#define BUTTON_COUNT                 8
 
 #define DEFAULT_WIFI_SSID           "DyWare-AP3"
 #define DEFAULT_WIFI_PASSWORD       "p@ssw0rd"
@@ -21,14 +21,14 @@
 #define DEFAULT_DEVICE_TYPES        "MagicButton"
 #define DEFAULT_DEVICE_SUBTYPES     "Generic"
 
-#define MQTT_SERVER                 "dypub.cloudapp.net" 
-#define MQTT_PORT                   1883
+#define MQTT_SERVER                 "dycodexapps.cloudapp.net" 
+#define MQTT_PORT                   8188
 
 #define DEFAULT_AP_NAME             "Button-" DEFAULT_DEVICE_ID
 #define DEFAULT_AP_PASS             "11223344"
 #define DEFAULT_IP_ADDR             "192.168.9.1"
 
-#define DEFAULT_SSID_NAME           "DyWare-AP3"
-#define DEFAULT_SSID_PASS           "p@ssw0rd"
+#define DEFAULT_SSID_NAME           "dycodex"
+#define DEFAULT_SSID_PASS           "11223344"
 
 #endif /* MAIN_CONSTANTS_H_ */

@@ -23,10 +23,17 @@
 #define CAPWHEEL_DEBUG_PRINT(...)   ESP_LOGI("CAPWHEEL", __VA_ARGS__);
 #define CAPWHEEL_INFO_PRINT(...)   	ESP_LOGI("CAPWHEEL", __VA_ARGS__);
 
+class CapTouchWheel;
+
+typedef struct CapTouchWheelTouchEvent {
+	touchpad_handle_t handle;
+	CapTouchWheel* wheel;
+} CapTouchWheelTouchEvent;
+
 class CapTouchWheel: public Task {
 public:
 
-	typedef std::function<void(uint8_t touchGpioNo, touchpad_event_t evt)> CapTouchActionCallback;
+	typedef std::function<void(uint8_t touchGpioNo, touchpad_cb_type_t evt)> CapTouchActionCallback;
 	typedef std::function<void(int16_t angle, int16_t inc)> CapClickWheelAngleChangedCallback;
 
 	CapTouchWheel();
@@ -61,7 +68,7 @@ private:
 	int16_t wheelDegreeOffset_ = 0;
 	int16_t lastWheelAngle_ = 0;
 
-	bool enableWheelAngleDetection_ = true;
+	bool enableWheelAngleDetection_ = false;
 	unsigned long lastTouchInterruptedTime_ = 0;
 
 	CapClickWheelAngleChangedCallback wheelAngleChangedCallback_ = NULL;
@@ -69,6 +76,7 @@ private:
 
 	void registerTouches();
 	void touchpadTask();
+	static void touchpadInternalCallback(void* arg);
 	xQueueHandle xQueueTouchPad_ = NULL;
 };
 

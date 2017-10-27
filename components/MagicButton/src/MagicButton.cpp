@@ -49,7 +49,7 @@ void MagicButtonBoardClass::startCapTouchWheel() {
 		capTouchWheel_->begin();
 	}
 
-	capTouchWheel_->setEnableWheelAngleDetection(true);
+	capTouchWheel_->setEnableWheelAngleDetection(false);
 //	capTouchWheel_->setWheelAngleChangedCallback([](int16_t angle, int16_t inc) {
 //		printf("Angle %d, inc %d\n", angle, inc);
 //	});
